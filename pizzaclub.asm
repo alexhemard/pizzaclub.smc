@@ -13,16 +13,11 @@
 ;; Byte 4:    vhoopppc    v: vertical flip h: horizontal flip  o: priority bits
 ;;                        p: palette #
 
-.STRUCT OAM_hi
+.STRUCT OAM_hi_table
 x     db
 y     db
 tile  db
 data  db
-.ENDST
-
-.STRUCT OAM_table
-hi ds 512
-lo ds 32
 .ENDST
 
 .STRUCT star
@@ -36,7 +31,8 @@ z db
 ;; setup variables
 
 .ENUM $00
-OAM instanceof OAM_table
+OAM_hi instanceof OAM_hi_table 128
+OAM_lo ds 32
 animation db
 UploadOAMFlag db
 .ENDE
@@ -51,9 +47,8 @@ Start:
   rep #$10
   sep #$20
 
-  lda #$01                ; screen mode 1 #%00000001
+  lda #$01                      ; screen mode 1
   sta $2105                     ; screen mode register
-
 
   stz UploadOAMFlag
 
@@ -69,19 +64,60 @@ Start:
 
   jsr SpriteInit
 
+  ;; pizza 1
+
   lda #($80-16)
-  sta OAM.hi + OAM_hi.x
+  sta OAM_hi.1.x
 
-  lda #(224/2 - 16)
-  sta OAM.hi + OAM_hi.y
+  lda #(224/2 - 16 )
+  sta OAM_hi.1.y
 
-  stz OAM.hi + OAM_hi.tile
+  stz OAM_hi.1.tile
 
   lda #%00000000
-  sta OAM.hi + OAM_hi.data
+  sta OAM_hi.1.data
 
-  lda #%01010110
-  sta OAM.lo
+  ;; pizza 2
+
+  lda 16
+  sta OAM_hi.2.x
+
+  lda 16
+  sta OAM_hi.2.y
+
+  stz OAM_hi.2.tile
+
+  lda #%00000000
+  sta OAM_hi.2.data
+
+  ;; pizza 3
+
+  lda #($0 + 69)
+  sta OAM_hi.3.x
+
+  lda #($0 + 200)
+  sta OAM_hi.3.y
+
+  stz OAM_hi.3.tile
+
+  lda #%00000000
+  sta OAM_hi.3.data
+
+  ;; pizza 4
+
+  lda #($0+150)
+  sta OAM_hi.4.x
+
+  lda #($0 + 10)
+  sta OAM_hi.4.y
+
+  stz OAM_hi.4.tile
+
+  lda #%00000000
+  sta OAM_hi.4.data
+
+  lda #%10101010
+  sta OAM_lo
 
   jsr SetupVideo
 
@@ -91,9 +127,21 @@ Start:
 Loop:
   WAI                           ; wait for V blank
 
-  inc OAM.hi + OAM_hi.x
-  inc OAM.hi + OAM_hi.x
-  inc OAM.hi + OAM_hi.y
+  inc OAM_hi.1.x
+  inc OAM_hi.1.x
+  inc OAM_hi.1.y
+
+  inc OAM_hi.2.x
+  inc OAM_hi.2.x
+  inc OAM_hi.2.y
+
+  inc OAM_hi.3.x
+  inc OAM_hi.3.x
+  inc OAM_hi.3.y
+
+  inc OAM_hi.4.x
+  inc OAM_hi.4.x
+  inc OAM_hi.4.y
 
 _done:
   jmp Loop
@@ -106,7 +154,7 @@ SpriteInit:
 	ldx #$0000
   lda #$01
 _offscreen:
-  sta OAM.hi, X                 ; set x to 1 for each sprite
+  sta OAM_hi, X                 ; set x to 1 for each sprite
   inx
   inx
   inx
@@ -117,7 +165,7 @@ _offscreen:
 	ldx #$0000
 	lda #$5555                    ; init oam table 2 w/ offscreen x bit set
 _clr:
-	sta OAM.lo, X                 ; initialize all sprites to be off the screen
+	sta OAM_lo, X                 ; initialize all sprites to be off the screen
 	inx
 	inx
 	cpx #$0020                    ; do this 20 times (size of oam table 2)
@@ -145,7 +193,7 @@ SetupVideo:
   rts
 
 VBlank:
-  lda OAM
+  lda OAM_hi
 
   stz $2102
   sta $2103                     ; Set OAM address to OAM
