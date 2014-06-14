@@ -1,8 +1,9 @@
 
 .MEMORYMAP                      ; Begin describing the system architecture.
   SLOTSIZE $8000                ; The slot is $8000 bytes in size. More details on slots later.
-  DEFAULTSLOT 0
-  SLOT 0 $8000                  ; Defines Slot 0's starting address.
+  DEFAULTSLOT 1
+  SLOT 0 $0
+  SLOT 1 $8000
 .ENDME          ; End MemoryMap definition
 
 .ROMBANKSIZE $8000              ; Every ROM bank is 32 KBytes in size
@@ -41,12 +42,12 @@
   IRQBRK EmptyHandler
 .ENDEMUVECTOR
 
-.BANK 0 SLOT 0                  ; Defines the ROM bank and the slot it is inserted in memory.
+.BANK 0 SLOT 1                  ; Defines the ROM bank and the slot it is inserted in memory.
 .ORG 0                          ; .ORG 0 is really $8000, because the slot starts at $8000
 .SECTION "EmptyVectors" SEMIFREE
 
 EmptyHandler:
-       rti
+  rti
 
 .ENDS
 

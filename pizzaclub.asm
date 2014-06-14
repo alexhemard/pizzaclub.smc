@@ -1,43 +1,13 @@
 .include "header.inc"
 .include "Snes_Init.asm"
 .include "LoadGraphics.asm"
+.include "Mouse.asm"
 
-.define SCREEN_WIDTH $FF
-.define SCREEN_HEIGHT $E0
+.include "structs.asm"
+.include "defines.asm"
+.include "memory.asm"
 
-;; oam table 1
-;; Sprite Table 1 (4-bytes per sprite)
-;; Byte 1:    xxxxxxxx    x: X coordinate
-;; Byte 2:    yyyyyyyy    y: Y coordinate
-;; Byte 3:    cccccccc    c: Starting tile #
-;; Byte 4:    vhoopppc    v: vertical flip h: horizontal flip  o: priority bits
-;;                        p: palette #
-
-.STRUCT OAM_hi_table
-x     db
-y     db
-tile  db
-data  db
-.ENDST
-
-.STRUCT star
-x db
-y db
-z db
-.ENDST
-
-.DEFINE SCREEN
-
-;; setup variables
-
-.ENUM $00
-OAM_hi instanceof OAM_hi_table 128
-OAM_lo ds 32
-animation db
-UploadOAMFlag db
-.ENDE
-
-.BANK 0 SLOT 0
+.BANK 0 SLOT 1
 .ORG 0
 .SECTION "MainCode"
 
@@ -49,8 +19,6 @@ Start:
 
   lda #$01                      ; screen mode 1
   sta $2105                     ; screen mode register
-
-  stz UploadOAMFlag
 
   ; Blue Background
   stz $2121
@@ -64,86 +32,68 @@ Start:
 
   jsr SpriteInit
 
-  ;; pizza 1
-
   lda #($80-16)
-  sta OAM_hi.1.x
+  sta.w OAM_hi.1.x
 
   lda #(224/2 - 16 )
-  sta OAM_hi.1.y
+  sta.w OAM_hi.1.y
 
-  stz OAM_hi.1.tile
-
-  lda #%00000000
-  sta OAM_hi.1.data
-
-  ;; pizza 2
-
-  lda 16
-  sta OAM_hi.2.x
-
-  lda 16
-  sta OAM_hi.2.y
-
-  stz OAM_hi.2.tile
+  stz.w OAM_hi.1.tile
 
   lda #%00000000
-  sta OAM_hi.2.data
+  sta.w OAM_hi.1.data
 
-  ;; pizza 3
-
-  lda #($0 + 69)
-  sta OAM_hi.3.x
-
-  lda #($0 + 200)
-  sta OAM_hi.3.y
-
-  stz OAM_hi.3.tile
-
-  lda #%00000000
-  sta OAM_hi.3.data
-
-  ;; pizza 4
-
-  lda #($0+150)
-  sta OAM_hi.4.x
-
-  lda #($0 + 10)
-  sta OAM_hi.4.y
-
-  stz OAM_hi.4.tile
-
-  lda #%00000000
-  sta OAM_hi.4.data
-
-  lda #%10101010
-  sta OAM_lo
+  lda #%01010110
+  sta.w OAM_lo
 
   jsr SetupVideo
 
-  lda #$80
+  lda #$81                      ; NMI & Joypadz
   sta $4200                     ; Enable NMI
 
 Loop:
-  WAI                           ; wait for V blank
 
-  inc OAM_hi.1.x
-  inc OAM_hi.1.x
-  inc OAM_hi.1.y
+WaitVBlank:
+	lda $4212		;check the vblank flag
+	and #$80
+	beq WaitVBlank
 
-  inc OAM_hi.2.x
-  inc OAM_hi.2.x
-  inc OAM_hi.2.y
+WaitJoypad:
+  lda $4212
+  and #$01
+  bne WaitJoypad
 
-  inc OAM_hi.3.x
-  inc OAM_hi.3.x
-  inc OAM_hi.3.y
+  ldx $4219
+  txa
+  and #$01
+  beq _right
+  inc.w OAM_hi.1.x
+  inc.w OAM_hi.1.x
 
-  inc OAM_hi.4.x
-  inc OAM_hi.4.x
-  inc OAM_hi.4.y
+_right:
+  txa
+  and #$02
+  beq _down
+  dec.w OAM_hi.1.x
+  dec.w OAM_hi.1.x
+
+_down:
+  txa
+  and #$08
+  beq _up
+  dec.w OAM_hi.1.y
+  dec.w OAM_hi.1.y
+
+_up:
+  txa
+  and #$04
+  beq _done
+  inc.w OAM_hi.1.y
+  inc.w OAM_hi.1.y
 
 _done:
+  wai
+
   jmp Loop
 
 SpriteInit:
@@ -154,7 +104,7 @@ SpriteInit:
 	ldx #$0000
   lda #$01
 _offscreen:
-  sta OAM_hi, X                 ; set x to 1 for each sprite
+  sta.w OAM_hi, X                 ; set x to 1 for each sprite
   inx
   inx
   inx
@@ -165,7 +115,7 @@ _offscreen:
 	ldx #$0000
 	lda #$5555                    ; init oam table 2 w/ offscreen x bit set
 _clr:
-	sta OAM_lo, X                 ; initialize all sprites to be off the screen
+	sta.w OAM_lo, X                 ; initialize all sprites to be off the screen
 	inx
 	inx
 	cpx #$0020                    ; do this 20 times (size of oam table 2)
@@ -193,7 +143,7 @@ SetupVideo:
   rts
 
 VBlank:
-  lda OAM_hi
+  lda.w OAM_hi
 
   stz $2102
   sta $2103                     ; Set OAM address to OAM
@@ -218,7 +168,7 @@ VBlank:
 
 .ENDS
 
-.BANK 1 SLOT 0
+.BANK 1 SLOT 1
 .ORG 0
 .SECTION "CharacterData"
 
