@@ -2,44 +2,14 @@
 .include "Snes_Init.asm"
 .include "LoadGraphics.asm"
 
-.define SCREEN_WIDTH $FF
-.define SCREEN_HEIGHT $E0
+.include "structs.asm"
+.include "defines.asm"
+.include "memory.asm"
 
-;; oam table 1
-;; Sprite Table 1 (4-bytes per sprite)
-;; Byte 1:    xxxxxxxx    x: X coordinate
-;; Byte 2:    yyyyyyyy    y: Y coordinate
-;; Byte 3:    cccccccc    c: Starting tile #
-;; Byte 4:    vhoopppc    v: vertical flip h: horizontal flip  o: priority bits
-;;                        p: palette #
-
-.STRUCT OAM_hi_table
-x     db
-y     db
-tile  db
-data  db
-.ENDST
-
-.STRUCT star
-x db
-y db
-z db
-.ENDST
-
-.DEFINE SCREEN
-
-;; setup variables
-
-.ENUM $00
-OAM_hi instanceof OAM_hi_table 128
-OAM_lo ds 32
-animation db
-UploadOAMFlag db
-.ENDE
-
-.BANK 0 SLOT 0
+.BANK 0 SLOT 1
 .ORG 0
 .SECTION "MainCode"
+.include "Mouse.asm"
 
 Start:
   Snes_Init                     ; Init Routine
@@ -47,10 +17,11 @@ Start:
   rep #$10
   sep #$20
 
+  stz MouseDS1Check0.w
+  stz MouseDS1Check1.w
+
   lda #$01                      ; screen mode 1
   sta $2105                     ; screen mode register
-
-  stz UploadOAMFlag
 
   ; Blue Background
   stz $2121
@@ -64,87 +35,93 @@ Start:
 
   jsr SpriteInit
 
-  ;; pizza 1
-
   lda #($80-16)
-  sta OAM_hi.1.x
+  sta.w OAM_lo.1.x
 
   lda #(224/2 - 16 )
-  sta OAM_hi.1.y
+  sta.w OAM_lo.1.y
 
-  stz OAM_hi.1.tile
-
-  lda #%00000000
-  sta OAM_hi.1.data
-
-  ;; pizza 2
-
-  lda 16
-  sta OAM_hi.2.x
-
-  lda 16
-  sta OAM_hi.2.y
-
-  stz OAM_hi.2.tile
+  stz.w OAM_lo.1.tile
 
   lda #%00000000
-  sta OAM_hi.2.data
+  sta.w OAM_lo.1.data
 
-  ;; pizza 3
-
-  lda #($0 + 69)
-  sta OAM_hi.3.x
-
-  lda #($0 + 200)
-  sta OAM_hi.3.y
-
-  stz OAM_hi.3.tile
-
-  lda #%00000000
-  sta OAM_hi.3.data
-
-  ;; pizza 4
-
-  lda #($0+150)
-  sta OAM_hi.4.x
-
-  lda #($0 + 10)
-  sta OAM_hi.4.y
-
-  stz OAM_hi.4.tile
-
-  lda #%00000000
-  sta OAM_hi.4.data
-
-  lda #%10101010
-  sta OAM_lo
+  lda #%01010110
+  sta OAM_hi.w
 
   jsr SetupVideo
 
-  lda #$80
+  lda #$81                      ; NMI & Joypadz
   sta $4200                     ; Enable NMI
 
 Loop:
-  WAI                           ; wait for V blank
 
-  inc OAM_hi.1.x
-  inc OAM_hi.1.x
-  inc OAM_hi.1.y
+WaitVBlank:
+  wai
+  lda $4212		;check the vblank flag
+	and #$80
+ 	beq WaitVBlank
 
-  inc OAM_hi.2.x
-  inc OAM_hi.2.x
-  inc OAM_hi.2.y
+  jsr MouseRead
 
-  inc OAM_hi.3.x
-  inc OAM_hi.3.x
-  inc OAM_hi.3.y
-
-  inc OAM_hi.4.x
-  inc OAM_hi.4.x
-  inc OAM_hi.4.y
+  lda MouseConnected0.w
+  beq _error
+  jmp _good
 
 _done:
   jmp Loop
+
+_error:
+  lda #%10000000
+  sta.w OAM_lo.1.data
+
+  jmp _done
+
+_good:
+  lda MouseX0.w
+  and #$7F
+  sta MouseDeltaX.w
+
+  lda MouseX0.w
+  and #$80
+  bne _moveLeft
+
+  lda OAM_lo.1.x.w
+  adc MouseDeltaX.w
+  sta OAM_lo.1.x.w
+
+  jmp _moveUp
+
+_moveLeft:
+  lda OAM_lo.1.x.w
+  sbc MouseDeltaX.w
+  sta OAM_lo.1.x.w
+
+  lda MouseX0.w
+  and #$7F
+  sta MouseDeltaX.w
+
+_moveUp
+  lda MouseY0.w
+  and #$7F
+  sta MouseDeltaY.w
+
+  lda MouseY0.w
+  and #$80
+  bne _moveDown
+
+  lda OAM_lo.1.y.w
+  adc MouseDeltaY.w
+  sta OAM_lo.1.y.w
+
+  jmp _done
+
+_moveDown:
+  lda OAM_lo.1.y.w
+  sbc MouseDeltaY.w
+  sta OAM_lo.1.y.w
+
+  jmp _done
 
 SpriteInit:
 	php                           ; preserve registers
@@ -154,7 +131,7 @@ SpriteInit:
 	ldx #$0000
   lda #$01
 _offscreen:
-  sta OAM_hi, X                 ; set x to 1 for each sprite
+  sta OAM_lo.w, X                 ; set x to 1 for each sprite
   inx
   inx
   inx
@@ -165,7 +142,7 @@ _offscreen:
 	ldx #$0000
 	lda #$5555                    ; init oam table 2 w/ offscreen x bit set
 _clr:
-	sta OAM_lo, X                 ; initialize all sprites to be off the screen
+	sta OAM_hi.w, x               ; initialize all sprites to be off the screen
 	inx
 	inx
 	cpx #$0020                    ; do this 20 times (size of oam table 2)
@@ -193,10 +170,10 @@ SetupVideo:
   rts
 
 VBlank:
-  lda OAM_hi
+  lda OAM_lo.w
 
   stz $2102
-  sta $2103                     ; Set OAM address to OAM
+  stz $2103                     ; Set OAM address to OAM
 
   ldy #$0400                    ; Writes #$00 to $4300, #$04 to $4301
   sty $4300                     ; CPU -> PPU, auto inc, $2104 (OAM write)
@@ -209,7 +186,7 @@ VBlank:
   lda #$01
   sta $420B
 
-  RTI
+  rti
 
   ;; here's where I guess if I was doing the starfield thing,
   ;; I'd update my BG's character data via a DMA transfer...
@@ -218,7 +195,7 @@ VBlank:
 
 .ENDS
 
-.BANK 1 SLOT 0
+.BANK 1 SLOT 1
 .ORG 0
 .SECTION "CharacterData"
 
