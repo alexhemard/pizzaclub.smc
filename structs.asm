@@ -6,7 +6,7 @@
 ;; Byte 4:    vhoopppc    v: vertical flip h: horizontal flip  o: priority bits
 ;;                        p: palette #
 
-.STRUCT OAM_hi_table
+.STRUCT OAM_lo_table
 x     db
 y     db
 tile  db

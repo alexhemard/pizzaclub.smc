@@ -1,7 +1,6 @@
 .include "header.inc"
 .include "Snes_Init.asm"
 .include "LoadGraphics.asm"
-.include "Mouse.asm"
 
 .include "structs.asm"
 .include "defines.asm"
@@ -10,12 +9,16 @@
 .BANK 0 SLOT 1
 .ORG 0
 .SECTION "MainCode"
+.include "Mouse.asm"
 
 Start:
   Snes_Init                     ; Init Routine
 
   rep #$10
   sep #$20
+
+  stz MouseDS1Check0.w
+  stz MouseDS1Check1.w
 
   lda #$01                      ; screen mode 1
   sta $2105                     ; screen mode register
@@ -33,18 +36,18 @@ Start:
   jsr SpriteInit
 
   lda #($80-16)
-  sta.w OAM_hi.1.x
+  sta.w OAM_lo.1.x
 
   lda #(224/2 - 16 )
-  sta.w OAM_hi.1.y
+  sta.w OAM_lo.1.y
 
-  stz.w OAM_hi.1.tile
+  stz.w OAM_lo.1.tile
 
   lda #%00000000
-  sta.w OAM_hi.1.data
+  sta.w OAM_lo.1.data
 
   lda #%01010110
-  sta.w OAM_lo
+  sta OAM_hi.w
 
   jsr SetupVideo
 
@@ -54,47 +57,71 @@ Start:
 Loop:
 
 WaitVBlank:
-	lda $4212		;check the vblank flag
+  wai
+  lda $4212		;check the vblank flag
 	and #$80
-	beq WaitVBlank
+ 	beq WaitVBlank
 
-WaitJoypad:
-  lda $4212
-  and #$01
-  bne WaitJoypad
+  jsr MouseRead
 
-  ldx $4219
-  txa
-  and #$01
-  beq _right
-  inc.w OAM_hi.1.x
-  inc.w OAM_hi.1.x
-
-_right:
-  txa
-  and #$02
-  beq _down
-  dec.w OAM_hi.1.x
-  dec.w OAM_hi.1.x
-
-_down:
-  txa
-  and #$08
-  beq _up
-  dec.w OAM_hi.1.y
-  dec.w OAM_hi.1.y
-
-_up:
-  txa
-  and #$04
-  beq _done
-  inc.w OAM_hi.1.y
-  inc.w OAM_hi.1.y
+  lda MouseConnected0.w
+  beq _error
+  jmp _good
 
 _done:
-  wai
-
   jmp Loop
+
+_error:
+  lda #%10000000
+  sta.w OAM_lo.1.data
+
+  jmp _done
+
+_good:
+  lda MouseX0.w
+  and #$7F
+  sta MouseDeltaX.w
+
+  lda MouseX0.w
+  and #$80
+  bne _moveLeft
+
+  lda OAM_lo.1.x.w
+  adc MouseDeltaX.w
+  sta OAM_lo.1.x.w
+
+  jmp _moveUp
+
+_moveLeft:
+  lda OAM_lo.1.x.w
+  sbc MouseDeltaX.w
+  sta OAM_lo.1.x.w
+
+  lda MouseX0.w
+  and #$7F
+  sta MouseDeltaX.w
+
+_moveUp
+  lda MouseY0.w
+  and #$7F
+  sta MouseDeltaY.w
+
+  lda MouseY0.w
+  and #$80
+  bne _moveDown
+
+  lda OAM_lo.1.y.w
+  adc MouseDeltaY.w
+  sta OAM_lo.1.y.w
+
+  jmp _done
+
+_moveDown:
+  lda OAM_lo.1.y.w
+  sbc MouseDeltaY.w
+  sta OAM_lo.1.y.w
+
+  jmp _done
 
 SpriteInit:
 	php                           ; preserve registers
@@ -104,7 +131,7 @@ SpriteInit:
 	ldx #$0000
   lda #$01
 _offscreen:
-  sta.w OAM_hi, X                 ; set x to 1 for each sprite
+  sta OAM_lo.w, X                 ; set x to 1 for each sprite
   inx
   inx
   inx
@@ -115,7 +142,7 @@ _offscreen:
 	ldx #$0000
 	lda #$5555                    ; init oam table 2 w/ offscreen x bit set
 _clr:
-	sta.w OAM_lo, X                 ; initialize all sprites to be off the screen
+	sta OAM_hi.w, x               ; initialize all sprites to be off the screen
 	inx
 	inx
 	cpx #$0020                    ; do this 20 times (size of oam table 2)
@@ -143,10 +170,10 @@ SetupVideo:
   rts
 
 VBlank:
-  lda.w OAM_hi
+  lda OAM_lo.w
 
   stz $2102
-  sta $2103                     ; Set OAM address to OAM
+  stz $2103                     ; Set OAM address to OAM
 
   ldy #$0400                    ; Writes #$00 to $4300, #$04 to $4301
   sty $4300                     ; CPU -> PPU, auto inc, $2104 (OAM write)
@@ -159,7 +186,7 @@ VBlank:
   lda #$01
   sta $420B
 
-  RTI
+  rti
 
   ;; here's where I guess if I was doing the starfield thing,
   ;; I'd update my BG's character data via a DMA transfer...

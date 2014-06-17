@@ -53,7 +53,7 @@
 ; Routines
 ;============================================================
 
-.BANK 0
+.BANK 0 SLOT 1
 .ORG 0
 .SECTION "LoadVRAMCode" SEMIFREE
 
@@ -99,7 +99,7 @@ LoadVRAM:
 
 .ENDS
 
-.BANK 0
+.BANK 0 SLOT 1
 .ORG 0
 .SECTION "DMAPaletteCode" SEMIFREE
 
