@@ -14,7 +14,7 @@ data  db
 .ENDST
 
 .STRUCT star
-x db
-y db
-z db
+x dw
+y dw
+z dw
 .ENDST

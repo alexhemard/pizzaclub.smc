@@ -1,6 +1,6 @@
 .include "header.inc"
-.include "Snes_Init.asm"
-.include "LoadGraphics.asm"
+.include "lib/init.asm"
+.include "lib/graphics.asm"
 
 .include "structs.asm"
 .include "defines.asm"
@@ -9,7 +9,9 @@
 .BANK 0 SLOT 1
 .ORG 0
 .SECTION "MainCode"
-.include "Mouse.asm"
+
+.include "lib/mouse.asm"
+.include "lib/cursor.asm"
 
 Start:
   Snes_Init                     ; Init Routine
@@ -20,10 +22,9 @@ Start:
   stz MouseDS1Check0.w
   stz MouseDS1Check1.w
 
-  lda #$01                      ; screen mode 1
+  lda #$00                      ; screen mode 0
   sta $2105                     ; screen mode register
 
-  ; Blue Background
   stz $2121
   lda #$40
   sta $2122
@@ -63,65 +64,10 @@ WaitVBlank:
  	beq WaitVBlank
 
   jsr MouseRead
+  jsr UpdateCursor
 
-  lda MouseConnected0.w
-  beq _error
-  jmp _good
-
-_done:
   jmp Loop
 
-_error:
-  lda #%10000000
-  sta.w OAM_lo.1.data
-
-  jmp _done
-
-_good:
-  lda MouseX0.w
-  and #$7F
-  sta MouseDeltaX.w
-
-  lda MouseX0.w
-  and #$80
-  bne _moveLeft
-
-  lda OAM_lo.1.x.w
-  adc MouseDeltaX.w
-  sta OAM_lo.1.x.w
-
-  jmp _moveUp
-
-_moveLeft:
-  lda OAM_lo.1.x.w
-  sbc MouseDeltaX.w
-  sta OAM_lo.1.x.w
-
-  lda MouseX0.w
-  and #$7F
-  sta MouseDeltaX.w
-
-_moveUp
-  lda MouseY0.w
-  and #$7F
-  sta MouseDeltaY.w
-
-  lda MouseY0.w
-  and #$80
-  bne _moveDown
-
-  lda OAM_lo.1.y.w
-  adc MouseDeltaY.w
-  sta OAM_lo.1.y.w
-
-  jmp _done
-
-_moveDown:
-  lda OAM_lo.1.y.w
-  sbc MouseDeltaY.w
-  sta OAM_lo.1.y.w
-
-  jmp _done
 
 SpriteInit:
 	php                           ; preserve registers
@@ -154,6 +100,8 @@ _clr:
 SetupVideo:
   php
 
+SetupSprites:
+
   rep #$10                      ; reset idx register size
   sep #$20                      ; set accumulator register size to 8bit
 
@@ -165,6 +113,25 @@ SetupVideo:
 
   lda #$0F                      ; set first 4 bits (brightnes) to 100%
   sta $2100                     ; and write to screen display register
+
+SetupBG3:
+  ;; $2107-$210A BG Tile Map Location
+
+  ;; aaaaaacc -
+  ;; a = Tile Map VRAM offset, shifted right 10 times
+  ;; c = size of tilemap
+
+  lda #$10                      ; offset = $1000, 32x32 tilemap
+  sta $2109                     ; BG3 Tile Map Location
+
+  ;; $210C BG3/4 Character Location
+  ;; ccccdddd
+  ;; c = BG4 char offset (shift left by 12)
+  ;; d = BG3 char offset
+
+  lda #$06                      ; offset = $6000
+  sta $210C                     ; BG3/BG4 Character Location
+
 
   plp
   rts
@@ -200,5 +167,6 @@ VBlank:
 .SECTION "CharacterData"
 
 .INCLUDE "tiles.inc"
+
 
 .ENDS
