@@ -1,7 +1,9 @@
 .RAMSECTION "Vars" BANK 0 SLOT 0
 OAM_lo instanceof OAM_lo_table $80
 OAM_hi ds $20
+OAM_lo_Current dw
 
+        
 MouseDS1Check0     db           ; connect_st0
 MouseDS1Check1     db           ; connect_st1
 MouseTempLo        db           ; reg0l
@@ -25,9 +27,6 @@ MouseClickPrev1    db           ; mouse_sb1
 MouseDeltaX        db
 MouseDeltaY        db
 
-.ENDS
-
-.RAMSECTION "ScreenBuffer" BANK $7e SLOT 2
-starfield ds $4000              ; 32 x 32 tiles, 8 x 8 pixels each, 2bpp
-stars instanceof star $7F
+Stars instanceof star $1F
+StarCurrent dw
 .ENDS

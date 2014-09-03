@@ -12,6 +12,7 @@
 
 .include "lib/mouse.asm"
 .include "lib/cursor.asm"
+.include "lib/stars.asm"
 
 Start:
   Snes_Init                     ; Init Routine
@@ -25,15 +26,19 @@ Start:
   lda #$00                      ; screen mode 0
   sta $2105                     ; screen mode register
 
+  ;; dark blue palette
+
   stz $2121
-  lda #$40
-  sta $2122
-  sta $2122
 
   LoadPalette PizzaPalette, 128, 8
 
   LoadBlockToVRAM PizzaSprite, $0000, size_of_pizza
 
+  LoadBlockToVRAM StarSprites, $0080, 32*8
+
+  LoadPalette StarPalette, 128+16, 8
+
+  jsr StarsInit
   jsr SpriteInit
 
   lda #($80-16)
@@ -47,8 +52,25 @@ Start:
   lda #%00000000
   sta.w OAM_lo.1.data
 
-  lda #%01010110
+ ;; lda #$08
+ ;; sta.w OAM_lo.2.tile
+ ;; lda #%00000010
+ ;; sta.w OAM_lo.2.data
+
+  lda #%00000010
   sta OAM_hi.w
+
+  ldy #1
+
+_init_oam_hi:
+
+  lda #0
+  sta OAM_hi.w, Y
+
+  iny
+  tya
+  cmp #$1F
+  bne _init_oam_hi
 
   jsr SetupVideo
 
@@ -60,11 +82,11 @@ Loop:
 WaitVBlank:
   wai
   lda $4212		;check the vblank flag
-	and #$80
- 	beq WaitVBlank
+  and #$80
+  beq WaitVBlank
 
-  jsr MouseRead
-  jsr UpdateCursor
+  jsr CursorUpdate
+  jsr StarsUpdate
 
   jmp Loop
 
@@ -105,10 +127,10 @@ SetupSprites:
   rep #$10                      ; reset idx register size
   sep #$20                      ; set accumulator register size to 8bit
 
-  lda #%10100000                ; 32x32 and 64x64 size sprites
+  lda #%01000000                ; 8x8 and 64x64 size sprites
   sta $2101
 
-  lda #$10                      ; enable sprites
+  lda #$14                      ; enable sprites, bg3
   sta $212C                     ; set main screen register
 
   lda #$0F                      ; set first 4 bits (brightnes) to 100%
@@ -129,18 +151,22 @@ SetupBG3:
   ;; c = BG4 char offset (shift left by 12)
   ;; d = BG3 char offset
 
-  lda #$06                      ; offset = $6000
+  lda #$04                      ; offset = $4000
   sta $210C                     ; BG3/BG4 Character Location
-
 
   plp
   rts
 
 VBlank:
-  lda OAM_lo.w
+  php
 
+  sep #$20
+
+  jsr MouseRead
+
+DMA_OAM:
   stz $2102
-  stz $2103                     ; Set OAM address to OAM
+  stz $2103                     ; Set OAM address to $0000 (VRAM)
 
   ldy #$0400                    ; Writes #$00 to $4300, #$04 to $4301
   sty $4300                     ; CPU -> PPU, auto inc, $2104 (OAM write)
@@ -150,15 +176,12 @@ VBlank:
   sty $4305                     ; #$220 bytes to transfer
   lda #$7E
   sta $4304                     ; CPU address 7E:0000 - Work RAM
+
   lda #$01
-  sta $420B
+  sta $420B                     ;initiate transfer on channel 1,2
 
+  plp
   rti
-
-  ;; here's where I guess if I was doing the starfield thing,
-  ;; I'd update my BG's character data via a DMA transfer...
-  ;; i'd have to do this during vblank b/c it'd probably
-  ;; cause glitches if I was updating during a write 2 screen
 
 .ENDS
 
@@ -168,5 +191,11 @@ VBlank:
 
 .INCLUDE "tiles.inc"
 
+StarSeed:
+.REPEAT $1F
+  .DBRND 1, 0, $FF          ; x
+  .DBRND 1, 0, $FF          ; y
+  .DBRND 1, 0, $FF          ; z
+.ENDR
 
 .ENDS

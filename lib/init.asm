@@ -1,4 +1,4 @@
- .MACRO Snes_Init
+.MACRO Snes_Init
  	sei 	 	; Disabled interrupts
  	clc 	 	; clear carry to switch to native mode
  	xce 	 	; Xchange carry & emulation bit. native mode
@@ -7,11 +7,11 @@
   txs
 
   jsr Init
- .ENDM
+.ENDM
 
- .bank 0
- .section "Snes_Init" SEMIFREE
- Init:
+.bank 0
+.section "Snes_Init" SEMIFREE
+Init:
  	sep 	#$30    ; X,Y,A are 8 bit numbers
  	lda 	#$8F    ; screen off, full brightness
  	sta 	$2100   ; brightness + screen enable register
@@ -99,4 +99,4 @@
  	stz 	$420D	; Access cycle designation (slow/fast rom)
  	cli 	 	; Enable interrupts
  	rts
- .ends
+.ends

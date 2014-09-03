@@ -1,4 +1,4 @@
-UpdateCursor:
+CursorUpdate:
   lda MouseConnected0.w
   beq _CursorDone
   jmp _CursorConnected

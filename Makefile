@@ -1,8 +1,20 @@
-all: pizzaclub.smc
+AC = wla-65816
+AFLAGS = -o
+LD = wlalink
+LDFLAGS = -vsr
+LINKFILE = pizzaclub.link
+SFILES  = pizzaclub.asm
+OFILES  = $(SFILES:.asm=.o)
+ROMFILE = pizzaclub.smc
 
-pizzaclub.smc: pizzaclub.asm pizzaclub.link
-	wla-65816 -vo pizzaclub.asm pizzaclub.obj
-	wlalink -vr pizzaclub.link pizzaclub.smc
+all: $(OFILES)
+	$(LD) $(LDFLAGS) $(LINKFILE) $(ROMFILE)
+
+$(OFILES):
+	$(AC) $(AFLAGS) $(SFILES)
 
 clean:
-	rm -rf *.obj *.smc
+	rm -rf $(ROMFILE) *.o
+
+install: clean all
+	open $(ROMFILE)	
