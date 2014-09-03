@@ -1,9 +1,13 @@
 CursorUpdate:
+  php
+        
   lda MouseConnected0.w
   beq _CursorDone
   jmp _CursorConnected
 
 _CursorDone:
+        
+  plp        
   rts
 
 _CursorConnected:

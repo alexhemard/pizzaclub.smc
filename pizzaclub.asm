@@ -5,11 +5,12 @@
 .include "structs.asm"
 .include "defines.asm"
 .include "memory.asm"
-
+.include "lib/macros.asm"
+        
 .BANK 0 SLOT 1
 .ORG 0
 .SECTION "MainCode"
-
+        
 .include "lib/mouse.asm"
 .include "lib/cursor.asm"
 .include "lib/stars.asm"
@@ -89,7 +90,6 @@ WaitVBlank:
   jsr StarsUpdate
 
   jmp Loop
-
 
 SpriteInit:
 	php                           ; preserve registers

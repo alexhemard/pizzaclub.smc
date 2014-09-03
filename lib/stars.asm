@@ -1,28 +1,6 @@
 StarsInit:
-	php                           ; preserve registers
-
-  rep #$10
-  sep #$20                
-
-  ldx #$0
-_StarsInit_copy:
-  lda StarSeed.w, x             ; load x
-  sta Stars.w,    x
-  inx
-
-  lda StarSeed.w, x             ; load y
-  sta Stars.w,    x
-  inx
-
-  lda StarSeed.w, x             ; load z
-  sta Stars.w,    x
-  inx
-
-  txa
-  cmp ($1F * _sizeof_star)
-  bne _StarsInit_copy
-
-  plp
+  LoadRAM StarSeed, Stars, (_sizeof_star * $1f)
+        
   rts
 
 StarsUpdate:
