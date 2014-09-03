@@ -192,10 +192,5 @@ DMA_OAM:
 .INCLUDE "tiles.inc"
 
 StarSeed:
-.REPEAT $1F
-  .DBRND 1, 0, $FF          ; x
-  .DBRND 1, 0, $FF          ; y
-  .DBRND 1, 0, $FF          ; z
-.ENDR
-
+.DBRND ($1f * 3), 0, $FF
 .ENDS

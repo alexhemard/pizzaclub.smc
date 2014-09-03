@@ -2,7 +2,6 @@
 OAM_lo instanceof OAM_lo_table $80
 OAM_hi ds $20
 OAM_lo_Current dw
-
         
 MouseDS1Check0     db           ; connect_st0
 MouseDS1Check1     db           ; connect_st1
